@@ -1,11 +1,12 @@
-import os
-import base64
-from typing import Union
-from os.path import dirname, abspath, join
+from enum import Enum
+from os.path import abspath, dirname, join
+
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+
+from . import transforms
 
 current_dir = dirname(abspath(__file__))
 static_path = join(current_dir, "static")
@@ -14,24 +15,24 @@ app = FastAPI()
 app.mount("/ui", StaticFiles(directory=static_path), name="ui")
 
 
-class Body(BaseModel):
-    length: Union[int, None] = 20
-
-
-@app.get('/')
+@app.get("/")
 def root():
     html_path = join(static_path, "index.html")
     return FileResponse(html_path)
 
 
-@app.post('/generate')
-def generate(body: Body):
-    """
-    Generate a strong password of twenty characters by default. Example POST request body:
+class TransformerFunction(str, Enum):
+    CLAPIFY = "clapify"
+    BINARIZE = "binarize"
+    EMOJIFY = "emojify"
+    EXCLAMIFY = "exclamify"
+    MYSTERY = "mystery"
 
-    {
-        "length": 20
-    }
+
+@app.get("/transform")
+def transform(function: TransformerFunction, text: str):
+    """Transform the given text with one of the possible functions.
+    Example query:
+    /transform?function=clapify&text=Just%20do%20it
     """
-    string = base64.b64encode(os.urandom(64))[:body.length].decode('utf-8')
-    return {'password': string}
+    return {"transformed": getattr(transforms, function)(text)}
